@@ -1,0 +1,65 @@
+// STEP 7 V5.7 - Nguon STL viet theo mau LAD (moi network = 1 hop MOVE)
+// Cach dung:
+//   1. SIMATIC Manager > Sources > Insert New Object > External Source
+//   2. Dan file nay, File > Compile
+//   3. Mo FC100, chon View > LAD (Ctrl+1) de xem duoi dang LAD
+// Neu DB8000 da co san trong project: xoa phan DATA_BLOCK ben duoi truoc khi compile,
+// neu khong DB8000 cu se bi ghi de.
+// M10.0 = bit cho phep ghi. Doi sang bit khac hoac xoa tiep diem trong LAD neu khong can.
+
+DATA_BLOCK DB 8000
+TITLE = 'Text buffer'
+VERSION : 0.1
+
+  STRUCT
+   Text_ABC : DWORD ;	// DBD0: 'A','B','C',00
+   Reserve : ARRAY  [1 .. 36 ] OF BYTE ;	// DBB4..DBB39
+   Text : STRING  [40 ];	// DBB40 = do dai max, DBB41 = do dai thuc, DBB42.. = ky tu
+  END_STRUCT ;
+BEGIN
+   Text_ABC := DW#16#0;
+   Text := '';
+END_DATA_BLOCK
+
+FUNCTION FC 100 : VOID
+TITLE = Ghi chuoi vao DB8000 (LAD)
+VERSION : 0.1
+
+BEGIN
+NETWORK
+TITLE = 'ABC' -> DB8000.DBD0
+// 41='A', 42='B', 43='C', 00 = byte cuoi
+      A     M     10.0; 
+      JNB   _001; 
+      L     DW#16#41424300; 
+      T     DB8000.DBD    0; 
+_001: NOP   0; 
+NETWORK
+TITLE = STRING: do dai thuc = 10 -> DB8000.DBB41
+      A     M     10.0; 
+      JNB   _002; 
+      L     B#16#A; 
+      T     DB8000.DBB   41; 
+_002: NOP   0; 
+NETWORK
+TITLE = 'ABCD' -> DB8000.DBD42
+      A     M     10.0; 
+      JNB   _003; 
+      L     DW#16#41424344; 
+      T     DB8000.DBD   42; 
+_003: NOP   0; 
+NETWORK
+TITLE = 'EFGH' -> DB8000.DBD46
+      A     M     10.0; 
+      JNB   _004; 
+      L     DW#16#45464748; 
+      T     DB8000.DBD   46; 
+_004: NOP   0; 
+NETWORK
+TITLE = 'IJ' -> DB8000.DBW50
+      A     M     10.0; 
+      JNB   _005; 
+      L     W#16#494A; 
+      T     DB8000.DBW   50; 
+_005: NOP   0; 
+END_FUNCTION
