@@ -1,0 +1,46 @@
+// Quét toàn bộ một DB lỗi (toàn Bool), AnyFault = TRUE khi có ít nhất 1 bit = TRUE.
+// Đọc 4 byte (32 bit) mỗi lần bằng PEEK_DWORD nên rất nhẹ cho CPU.
+// Yêu cầu: DB lỗi phải là Standard (bỏ tick "Optimized block access" trong Properties của DB).
+// Dùng được cho S7-1200 (FW >= 4.x) và S7-1500, TIA Portal V17.
+FUNCTION "FC_ScanFaultDB" : Void
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+   VAR_INPUT
+      FaultDB : DB_ANY;        // DB lỗi, ví dụ "DB_Loi"
+      SizeBytes : DInt;        // Kích thước DB tính bằng byte (xem offset cuối trong DB)
+   END_VAR
+
+   VAR_OUTPUT
+      AnyFault : Bool;         // TRUE khi có ít nhất 1 lỗi
+      FaultOffset : DInt;      // Byte bắt đầu của vùng có lỗi đầu tiên, -1 nếu không có lỗi
+   END_VAR
+
+   VAR_TEMP
+      offset : DInt;
+   END_VAR
+
+BEGIN
+	#AnyFault := FALSE;
+	#FaultOffset := -1;
+	#offset := 0;
+	
+	// Quét từng DWord (32 bit một lần)
+	WHILE #offset + 4 <= #SizeBytes DO
+	    IF PEEK_DWORD(area := 16#84, dbNumber := #FaultDB, byteOffset := #offset) <> 0 THEN
+	        #AnyFault := TRUE;
+	        #FaultOffset := #offset;
+	        RETURN; // gặp lỗi là thoát ngay, không quét tiếp
+	    END_IF;
+	    #offset := #offset + 4;
+	END_WHILE;
+	
+	// Quét các byte lẻ còn lại (nếu kích thước DB không chia hết cho 4)
+	WHILE #offset < #SizeBytes DO
+	    IF PEEK(area := 16#84, dbNumber := #FaultDB, byteOffset := #offset) <> 0 THEN
+	        #AnyFault := TRUE;
+	        #FaultOffset := #offset;
+	        RETURN;
+	    END_IF;
+	    #offset := #offset + 1;
+	END_WHILE;
+END_FUNCTION
